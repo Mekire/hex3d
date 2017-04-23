@@ -103,7 +103,7 @@ class HexMap(object):
         self.start_points = self.points.copy()
         self.recenter(center)
         self.change = True
-        self.angle_delta = 30
+        self.angle_delta = 60
 
     def make_map(self):
         tiles = pg.sprite.LayeredUpdates()
