@@ -8,6 +8,8 @@ import pygame as pg
 import opensimplex as simp
 
 
+CAPTION = "Hex 3D"
+
 BACKGROUND = pg.Color("darkslategray")
 TRANSPARENT = (0, 0, 0, 0)
 SCREEN_SIZE = (1200, 650)
@@ -82,13 +84,15 @@ class HexTile(pg.sprite.Sprite):
         self.image = None
         self.rect = None
         self.biome = biome
-        self.layer = 0
 
     def update(self, tiles, offset, point_array):
         self.image = tiles[self.biome]
         self.rect = self.image.get_rect()
         point = point_array[0][self.index]
         self.rect.bottomleft = point[0] - offset[0], point[1] + offset[1]
+
+    def draw(self, surface):
+        surface.blit(self.image, self.rect)
 
 
 class HexMap(object):
@@ -98,7 +102,8 @@ class HexMap(object):
         self.squash_ratio = 0.5
         self.scale = 10
         ##self.mapping = MapGen(size, seed=1195699439, frequency=6)
-        self.mapping = MapGen(size, frequency=4)
+        self.mapping = MapGen(size)
+        self.draw_order = None
         self.tiles, self.points = self.make_map()
         self.start_points = self.points.copy()
         self.recenter(center)
@@ -106,7 +111,7 @@ class HexMap(object):
         self.angle_delta = 60
 
     def make_map(self):
-        tiles = pg.sprite.LayeredUpdates()
+        tiles = pg.sprite.Group()
         row_offset = 2*SQRT_3
         col_offset = 3
         stagger = SQRT_3
@@ -154,13 +159,14 @@ class HexMap(object):
         return points
     
     def draw(self, surface):
-        self.tiles.draw(surface)
+        for tile in self.draw_order:
+            tile.draw(surface)
 
     def update(self):
         rel = pg.mouse.get_rel()
         if pg.mouse.get_pressed()[2]:
             self.rotate(-rel[0]/2)
-            self.azimuthal(np.sign(rel[1]), 0.03)
+            self.azimuthal(1, rel[1]*0.0025)
         if self.change:
             angle = np.radians(self.angle)
             cos = np.cos(angle)
@@ -169,8 +175,7 @@ class HexMap(object):
             self.points = self.transform(rot)
             tile_images, center = make_tiles(rot, self.scale, self.squash_ratio)
             self.tiles.update(tile_images, center, self.points)
-            for tile in self.tiles:
-                self.tiles.change_layer(tile, tile.rect.bottom)
+            self.draw_order = sorted(self.tiles, key=lambda t: t.rect.bottom)
             self.change = False
 
     def get_event(self, event):
@@ -203,7 +208,7 @@ class App(object):
         self.screen_rect = self.screen.get_rect()
         self.clock = pg.time.Clock()
         self.done = False
-        self.hexmap = HexMap((35,35), self.screen_rect.center)
+        self.hexmap = HexMap((70,70), self.screen_rect.center)
         
     def update(self):
         self.hexmap.update()
@@ -218,13 +223,19 @@ class App(object):
             if event.type == pg.QUIT:
                 self.done = True
             self.hexmap.get_event(event)
-                
+
+    def display_fps(self):
+        """Show the programs FPS in the window handle."""
+        caption = "{} - FPS: {:.2f}".format(CAPTION, self.clock.get_fps())
+        pg.display.set_caption(caption)
+        
     def main_loop(self):
         while not self.done:
             self.event_loop()
             self.update()
             self.render()
             self.clock.tick(FPS)
+            self.display_fps()
 
 
 def make_tiles(rot, scale, squash):
@@ -239,8 +250,7 @@ def make_tiles(rot, scale, squash):
         color = TERRAIN_COLORS[biome]
         bottom_color = [0.5 * col for col in color[:3]]
         height = TERRAIN_HEIGHTS[biome]*(scale/5)
-        surf = pg.Surface((max_x+border, max_y+height+border)).convert_alpha()
-        surf.fill(TRANSPARENT)
+        surf = pg.Surface((max_x+border,max_y+height+border), flags=pg.SRCALPHA)
         top = points.tolist()
         poly = sorted(top, key=lambda p: p[1], reverse=True)
         top_order = sorted(poly[:4])
@@ -258,6 +268,7 @@ def make_tiles(rot, scale, squash):
 
 def main():
     pg.init()
+    pg.display.set_caption(CAPTION)
     pg.display.set_mode(SCREEN_SIZE)
     App().main_loop()
     pg.quit()
