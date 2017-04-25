@@ -208,7 +208,7 @@ class App(object):
         self.screen_rect = self.screen.get_rect()
         self.clock = pg.time.Clock()
         self.done = False
-        self.hexmap = HexMap((70,70), self.screen_rect.center)
+        self.hexmap = HexMap((60,60), self.screen_rect.center)
         
     def update(self):
         self.hexmap.update()
@@ -243,8 +243,9 @@ def make_tiles(rot, scale, squash):
     points = (np.dot(BASE_POINTS[0]*scale, rot.T) * (1, squash))
     min_x, min_y = np.min(points[:,0]), np.min(points[:,1])
     points -= min_x, min_y
+    points = np.ceil(points)
     max_x, max_y = np.max(points[:,0]), np.max(points[:,1])
-    footprint = pg.Rect((0,0,max_x+border, max_y+border))
+    footprint = pg.Rect((0, 0, max_x, max_y))
     tiles = {}
     for biome,_ in TERRAIN:
         color = TERRAIN_COLORS[biome]
@@ -263,7 +264,7 @@ def make_tiles(rot, scale, squash):
         for pair in zip(bottom_order, top_order):
             pg.draw.line(surf, pg.Color("black"), pair[0], pair[1], border)
         tiles[biome] = surf
-    return tiles, (footprint.w/2+border, footprint.h/2+border)
+    return tiles, (footprint.w//2, footprint.h//2)
     
 
 def main():
